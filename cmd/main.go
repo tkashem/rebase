@@ -32,6 +32,6 @@ func NewRootCommand() *cobra.Command {
 		},
 	}
 
-	cmd.AddCommand(pkgcmd.NewPickCommand())
+	cmd.AddCommand(pkgcmd.NewApplyCommand())
 	return cmd
 }

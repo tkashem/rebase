@@ -8,14 +8,14 @@ import (
 	"github.com/tkashem/rebase/pkg/carry"
 )
 
-type PickOptions struct {
+type ApplyOptions struct {
 	CarryCommitLogFilePath string
 	OverrideFilePath       string
 	Target                 string
 }
 
-func NewPickCommand() *cobra.Command {
-	options := &PickOptions{}
+func NewApplyCommand() *cobra.Command {
+	options := &ApplyOptions{}
 
 	cmd := &cobra.Command{
 		Use:          "apply --target=v.1.24 --carry-commit-file={carry-commit-log-file-path} --overrides={override file path}",
