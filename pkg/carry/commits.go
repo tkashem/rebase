@@ -6,11 +6,11 @@ import (
 	"os"
 )
 
-type Reader interface {
-	Read() ([]*Record, error)
+type CommitReader interface {
+	Read() ([]*Commit, error)
 }
 
-func NewReaderFromFile(fpath string) (Reader, error) {
+func NewCommitReaderFromFile(fpath string) (CommitReader, error) {
 	stat, err := os.Stat(fpath)
 	if err != nil {
 		return nil, fmt.Errorf("error loading file %q - %w", fpath, err)
@@ -23,7 +23,7 @@ func NewReaderFromFile(fpath string) (Reader, error) {
 	return &reader{fpath: fpath}, nil
 }
 
-type Record struct {
+type Commit struct {
 	SHA               string
 	CommitType        string
 	Message           string
@@ -32,11 +32,11 @@ type Record struct {
 	UpstreamPR        string
 }
 
-func (r *Record) String() string {
+func (r *Commit) String() string {
 	return fmt.Sprintf("%s, %s, %s, %s, %q", r.SHA, r.CommitType, r.OpenShiftCommit, r.UpstreamPR, r.Message)
 }
 
-func (r *Record) ShortString() string {
+func (r *Commit) ShortString() string {
 	return fmt.Sprintf("%s(%s): %s - %s", r.SHA, r.CommitType, r.Message, r.OpenShiftCommit)
 }
 
@@ -44,7 +44,7 @@ type reader struct {
 	fpath string
 }
 
-func (r *reader) Read() ([]*Record, error) {
+func (r *reader) Read() ([]*Commit, error) {
 	file, err := os.Open(r.fpath)
 	if err != nil {
 		return nil, fmt.Errorf("error loading file %q - %w", r.fpath, err)
@@ -53,7 +53,7 @@ func (r *reader) Read() ([]*Record, error) {
 	defer file.Close()
 
 	scanner := bufio.NewScanner(file)
-	records := make([]*Record, 0)
+	records := make([]*Commit, 0)
 	// we assume first line is not the header
 	for scanner.Scan() {
 		record, err := parse(scanner.Text())

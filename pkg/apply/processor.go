@@ -73,7 +73,7 @@ func (s *processor) Done() error {
 	return nil
 }
 
-func (s *processor) Step(r *carry.Record) (DoFunc, error) {
+func (s *processor) Step(r *carry.Commit) (DoFunc, error) {
 	switch {
 	case r.CommitType == "drop":
 		return s.drop, nil
@@ -88,7 +88,7 @@ func (s *processor) Step(r *carry.Record) (DoFunc, error) {
 	return nil, fmt.Errorf("invalid commit type: %s", r.CommitType)
 }
 
-func (s *processor) exists(r *carry.Record) (bool, error) {
+func (s *processor) exists(r *carry.Commit) (bool, error) {
 	commits, err := s.git.Log(s.stopAtSHA)
 	if err != nil {
 		return false, fmt.Errorf("git log failed with error: %w", err)
@@ -104,7 +104,7 @@ func (s *processor) exists(r *carry.Record) (bool, error) {
 	return found, nil
 }
 
-func (s *processor) cherrypick(r *carry.Record) error {
+func (s *processor) cherrypick(r *carry.Commit) error {
 	if err := s.git.CherryPick(r.SHA); err != nil {
 		return &CherryPickError{
 			gitErr:  err,
@@ -114,7 +114,7 @@ func (s *processor) cherrypick(r *carry.Record) error {
 	return nil
 }
 
-func (s *processor) carry(r *carry.Record) error {
+func (s *processor) carry(r *carry.Commit) error {
 	picked, err := s.exists(r)
 	if err != nil {
 		return err
@@ -131,7 +131,7 @@ func (s *processor) carry(r *carry.Record) error {
 	return nil
 }
 
-func (s *processor) pick(r *carry.Record) error {
+func (s *processor) pick(r *carry.Commit) error {
 	merged, err := s.github.IsPRMerged(r.UpstreamPR)
 	if err != nil {
 		return err
@@ -157,7 +157,7 @@ func (s *processor) pick(r *carry.Record) error {
 	return nil
 }
 
-func (s *processor) drop(r *carry.Record) error {
+func (s *processor) drop(r *carry.Commit) error {
 	klog.Infof("status= do=? - %s", r.ShortString())
 	drop, err := prompt(fmt.Sprintf("do you want to drop(%s)?[Yes/No]:", r.SHA))
 	if err != nil {
@@ -172,7 +172,7 @@ func (s *processor) drop(r *carry.Record) error {
 	return s.carry(r)
 }
 
-func (s *processor) revert(r *carry.Record) error {
+func (s *processor) revert(r *carry.Commit) error {
 	return s.carry(r)
 }
 

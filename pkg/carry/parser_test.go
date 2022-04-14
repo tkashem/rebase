@@ -13,13 +13,13 @@ func TestParse(t *testing.T) {
 		name             string
 		input            string
 		errShouldContain string
-		expected         *Record
+		expected         *Commit
 	}{
 		{
 			name:             "revert",
 			input:            "\td032c6e6463\t\t\tUPSTREAM: revert: <carry>: Unskip OCP SDN related tests\thttps://github.com/openshift/kubernetes/commit/d032c6e6463?w=1",
 			errShouldContain: "",
-			expected: &Record{
+			expected: &Commit{
 				SHA:               "d032c6e6463",
 				CommitType:        "revert",
 				Message:           "<carry>: Unskip OCP SDN related tests",
@@ -32,7 +32,7 @@ func TestParse(t *testing.T) {
 			name:             "pick",
 			input:            "\tdb4c4bbd6d6\t\t\tUPSTREAM: 107900: Add an e2e test for updating a static pod while it restarts\thttps://github.com/openshift/kubernetes/commit/db4c4bbd6d6?w=1\thttps://github.com/kubernetes/kubernetes/pull/107900",
 			errShouldContain: "",
-			expected: &Record{
+			expected: &Commit{
 				SHA:               "db4c4bbd6d6",
 				CommitType:        "107900",
 				Message:           "Add an e2e test for updating a static pod while it restarts",
@@ -45,7 +45,7 @@ func TestParse(t *testing.T) {
 			name:             "carry",
 			input:            "\td7b268fffba\t\t\tUPSTREAM: <carry>: use console-public config map for console redirect\thttps://github.com/openshift/kubernetes/commit/d7b268fffba?w=1",
 			errShouldContain: "",
-			expected: &Record{
+			expected: &Commit{
 				SHA:               "d7b268fffba",
 				CommitType:        "carry",
 				Message:           "use console-public config map for console redirect",
@@ -58,7 +58,7 @@ func TestParse(t *testing.T) {
 			name:             "drop",
 			input:            "\tc77caa826a0\t\t\tUPSTREAM: <drop>: update vendor files\thttps://github.com/openshift/kubernetes/commit/c77caa826a0?w=1",
 			errShouldContain: "",
-			expected: &Record{
+			expected: &Commit{
 				SHA:               "c77caa826a0",
 				CommitType:        "drop",
 				Message:           "update vendor files",

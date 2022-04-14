@@ -9,7 +9,7 @@ import (
 )
 
 type Overrider interface {
-	Override([]*carry.Record)
+	Override([]*carry.Commit)
 }
 
 func newOverrider(fpath string) (Overrider, error) {
@@ -22,7 +22,7 @@ func newOverrider(fpath string) (Overrider, error) {
 
 type noOverride struct{}
 
-func (noOverride) Override(commits []*carry.Record) {
+func (noOverride) Override(commits []*carry.Commit) {
 	klog.InfoS("override: none specified")
 }
 
@@ -67,7 +67,7 @@ func newOverriderFromFile(fpath string) (*overrider, error) {
 	return &overrider{overrides: o.Overrides}, nil
 }
 
-func (o *overrider) Override(commits []*carry.Record) {
+func (o *overrider) Override(commits []*carry.Commit) {
 	o.info()
 	overrides := toMap(o.overrides)
 

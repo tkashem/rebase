@@ -11,15 +11,15 @@ import (
 	"k8s.io/klog/v2"
 )
 
-type DoFunc func(*carry.Record) error
+type DoFunc func(*carry.Commit) error
 
 type Processor interface {
 	Init() error
 	Done() error
-	Step(*carry.Record) (DoFunc, error)
+	Step(*carry.Commit) (DoFunc, error)
 }
 
-func New(reader carry.Reader, target string, overrideFilePath string) (*cmd, error) {
+func New(reader carry.CommitReader, target string, overrideFilePath string) (*cmd, error) {
 	workingDir, err := os.Getwd()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get working directory: %w", err)
@@ -56,7 +56,7 @@ func New(reader carry.Reader, target string, overrideFilePath string) (*cmd, err
 }
 
 type cmd struct {
-	reader    carry.Reader
+	reader    carry.CommitReader
 	overrider Overrider
 	processor Processor
 }
@@ -72,7 +72,7 @@ func (c *cmd) Run() error {
 	return process(c.processor, commits)
 }
 
-func process(p Processor, commits []*carry.Record) error {
+func process(p Processor, commits []*carry.Commit) error {
 	if err := p.Init(); err != nil {
 		return fmt.Errorf("initialization failed with: %w", err)
 	}

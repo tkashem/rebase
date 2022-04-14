@@ -6,7 +6,7 @@ import (
 	"strings"
 )
 
-func parse(s string) (*Record, error) {
+func parse(s string) (*Commit, error) {
 	// an example commit log
 	// {commit-sha}\t\t\tUPSTREAM: {type}: {message}\t{openshift-commit}\t{upstream-pr}
 	// type == 'carry|revert|drop|{upstream-pr-number}'
@@ -15,7 +15,7 @@ func parse(s string) (*Record, error) {
 	if len(split) < 2 {
 		return nil, fmt.Errorf("malformed commit log, separator: %q not found", "\t\t\t")
 	}
-	record := &Record{
+	record := &Commit{
 		SHA: split[0],
 	}
 

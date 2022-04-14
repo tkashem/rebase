@@ -23,7 +23,7 @@ func NewPickCommand() *cobra.Command {
 		Example:      "",
 		SilenceUsage: true,
 		RunE: func(c *cobra.Command, args []string) error {
-			reader, err := carry.NewReaderFromFile(options.CarryCommitLogFilePath)
+			reader, err := carry.NewCommitReaderFromFile(options.CarryCommitLogFilePath)
 			if err != nil {
 				return err
 			}
