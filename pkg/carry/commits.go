@@ -11,15 +11,6 @@ type CommitReader interface {
 }
 
 func NewCommitReaderFromFile(fpath string) (CommitReader, error) {
-	stat, err := os.Stat(fpath)
-	if err != nil {
-		return nil, fmt.Errorf("error loading file %q - %w", fpath, err)
-	}
-
-	if stat.IsDir() {
-		return nil, fmt.Errorf("is a directory %q", err)
-	}
-
 	return &reader{fpath: fpath}, nil
 }
 

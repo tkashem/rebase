@@ -6,22 +6,21 @@ import (
 	"k8s.io/klog/v2"
 	"os"
 
-	"github.com/tkashem/rebase/pkg/apply"
 	"github.com/tkashem/rebase/pkg/carry"
+	"github.com/tkashem/rebase/pkg/verify"
 )
 
-type ApplyOptions struct {
-	CarryCommitLogFilePath string
-	OverrideFilePath       string
+type VerifyOptions struct {
 	Target                 string
+	CarryCommitLogFilePath string
 }
 
-func NewApplyCommand() *cobra.Command {
-	options := &ApplyOptions{}
+func NewVerifyCommand() *cobra.Command {
+	options := &VerifyOptions{}
 
 	cmd := &cobra.Command{
-		Use:          "apply --target=v.1.24 --carry-commit-file={carry-commit-log-file-path} --overrides={override file path}",
-		Short:        "Iterates through the specified commit log file and applies each commit.",
+		Use:          "verify --target=v.1.24 --carry-commit-file={carry-commit-log-file-path}",
+		Short:        "Iterates through the carry commits picked in the branch and compares",
 		Example:      "",
 		SilenceUsage: true,
 		RunE: func(c *cobra.Command, args []string) error {
@@ -29,18 +28,21 @@ func NewApplyCommand() *cobra.Command {
 				return err
 			}
 
+			// TODO: today the carries are obtained from a CSV file, but in
+			//  the following rebase we can generate them on the fly using
+			//  the openshift rebase marker
 			reader, err := carry.NewCommitReaderFromFile(options.CarryCommitLogFilePath)
 			if err != nil {
 				return err
 			}
 
 			var runner Runner
-			if runner, err = apply.New(reader, options.Target, options.OverrideFilePath); err != nil {
+			if runner, err = verify.New(reader, options.Target); err != nil {
 				return err
 			}
 
 			if err := runner.Run(); err != nil {
-				klog.ErrorS(err, "apply failed")
+				klog.ErrorS(err, "verify failed")
 				return err
 			}
 
@@ -49,13 +51,12 @@ func NewApplyCommand() *cobra.Command {
 	}
 
 	cmd.Flags().StringVar(&options.CarryCommitLogFilePath, "carry-commit-file", options.CarryCommitLogFilePath, "file containing all commit logs")
-	cmd.Flags().StringVar(&options.OverrideFilePath, "overrides", options.OverrideFilePath, "path to file that contains overrides")
 	cmd.Flags().StringVar(&options.Target, "target", options.Target, "rebase target, ie. v1.24")
 
 	return cmd
 }
 
-func (o *ApplyOptions) Validate() error {
+func (o *VerifyOptions) Validate() error {
 	stat, err := os.Stat(o.CarryCommitLogFilePath)
 	if err != nil {
 		return fmt.Errorf("invalid path: %q - %w", o.CarryCommitLogFilePath, err)

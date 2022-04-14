@@ -3,20 +3,20 @@ package git
 import (
 	"fmt"
 	"io"
-	"k8s.io/klog/v2"
 	"os/exec"
 	"strings"
 
-	// "k8s.io/klog/v2"
 	gitv5 "github.com/go-git/go-git/v5"
 	gitv5object "github.com/go-git/go-git/v5/plumbing/object"
+	"k8s.io/klog/v2"
 )
 
 type Git interface {
-	FindRebaseMarkerCommitSHA(marker string) (string, error)
-	FetchURLForRemote(remoteName string) (string, error)
+	CheckRemotes() error
+	FindRebaseMarkerCommit(marker string) (*gitv5object.Commit, error)
 	Log(stopAtHash string) ([]*gitv5object.Commit, error)
 	CherryPick(sha string) error
+	AmendCommitMessage(append string) error
 }
 
 func OpenGit(path string) (Git, error) {
@@ -31,25 +31,51 @@ type git struct {
 	repository *gitv5.Repository
 }
 
-func (git *git) FindRebaseMarkerCommitSHA(marker string) (string, error) {
+func (git *git) CheckRemotes() error {
+	for _, remote := range []struct {
+		name string
+		path string
+	}{
+		{
+			name: "openshift",
+			path: "github.com:openshift/kubernetes.git",
+		},
+		{
+			name: "upstream",
+			path: "github.com:kubernetes/kubernetes.git",
+		},
+	} {
+		fetchURL, err := git.fetchURLForRemote(remote.name)
+		if err != nil {
+			return err
+		}
+		if !strings.Contains(fetchURL, remote.path) {
+			return fmt.Errorf("fetch URL does not match, remote=%s path=%s", remote.name, remote.path)
+		}
+		klog.InfoS("git remote setup properly", "remote", remote.name, "fetch-url", fetchURL)
+	}
+	return nil
+}
+
+func (git *git) FindRebaseMarkerCommit(marker string) (*gitv5object.Commit, error) {
 	iter, err := git.repository.Log(&gitv5.LogOptions{})
 	if err != nil {
-		return "", fmt.Errorf("git log failed: %w", err)
+		return nil, fmt.Errorf("git log failed: %w", err)
 	}
 
 	defer iter.Close()
 	for {
 		commit, err := iter.Next()
 		if err != nil {
-			return "", fmt.Errorf("failed to find commit with marker: %s - %w", marker, err)
+			return nil, fmt.Errorf("failed to find commit with marker: %s - %w", marker, err)
 		}
 
 		if strings.Contains(commit.Message, marker) {
-			return commit.Hash.String(), nil
+			return commit, nil
 		}
 	}
 
-	return "", fmt.Errorf("failed to find commit with marker: %s", marker)
+	return nil, fmt.Errorf("failed to find commit with marker: %s", marker)
 }
 
 func (git *git) Log(stopAtHash string) ([]*gitv5object.Commit, error) {
@@ -78,20 +104,6 @@ func (git *git) Log(stopAtHash string) ([]*gitv5object.Commit, error) {
 	return commits, nil
 }
 
-func (git *git) FetchURLForRemote(remoteName string) (string, error) {
-	remote, err := git.repository.Remote(remoteName)
-	if err != nil {
-		return "", err
-	}
-	config := remote.Config()
-	// URLs the URLs of a remote repository. It must be non-empty. Fetch will
-	// always use the first URL, while push will use all of them.
-	if len(config.URLs) == 0 {
-		return "", fmt.Errorf("no fetch URLs, remote=%s", remoteName)
-	}
-	return config.URLs[0], nil
-}
-
 func (git *git) CherryPick(sha string) error {
 	// skipping --strategy-option=ours
 	cmd := exec.Command("git", "cherry-pick", "--allow-empty", sha)
@@ -112,4 +124,57 @@ func (git *git) CherryPick(sha string) error {
 		return fmt.Errorf("git cherry-pick failed: %w", err)
 	}
 	return nil
+}
+
+func (git *git) AmendCommitMessage(append string) error {
+	var err error
+	current, err := git.getCommitMessageAtHead()
+	if err != nil {
+		return err
+	}
+
+	cmd := exec.Command("git", "commit", "--amend", "-m", current, "-m", append)
+	klog.InfoS("amend commit message", "command", cmd.String())
+
+	var stdoutStderr []byte
+	defer func() {
+		if len(stdoutStderr) > 0 {
+			defer klog.Infof(">>>>>>>>>>>>>>>>>>>> OUTPUT: END >>>>>>>>>>>>>>>>>>>>>>")
+			klog.Infof("<<<<<<<<<<<<<<<<<<<< OUTPUT: START <<<<<<<<<<<<<<<<<<<<\n%s", stdoutStderr)
+		}
+	}()
+
+	stdoutStderr, err = cmd.CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("git cherry-pick failed: %w", err)
+	}
+	return nil
+}
+
+func (git *git) getCommitMessageAtHead() (string, error) {
+	reference, err := git.repository.Head()
+	if err != nil {
+		return "", err
+	}
+
+	commit, err := git.repository.CommitObject(reference.Hash())
+	if err != nil {
+		return "", err
+	}
+
+	return commit.Message, nil
+}
+
+func (git *git) fetchURLForRemote(remoteName string) (string, error) {
+	remote, err := git.repository.Remote(remoteName)
+	if err != nil {
+		return "", err
+	}
+	config := remote.Config()
+	// URLs the URLs of a remote repository. It must be non-empty. Fetch will
+	// always use the first URL, while push will use all of them.
+	if len(config.URLs) == 0 {
+		return "", fmt.Errorf("no fetch URLs, remote=%s", remoteName)
+	}
+	return config.URLs[0], nil
 }

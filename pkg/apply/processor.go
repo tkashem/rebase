@@ -31,40 +31,22 @@ type processor struct {
 }
 
 func (s *processor) Init() error {
-	for _, remote := range []struct {
-		name string
-		path string
-	}{
-		{
-			name: "openshift",
-			path: "github.com:openshift/kubernetes.git",
-		},
-		{
-			name: "upstream",
-			path: "github.com:kubernetes/kubernetes.git",
-		},
-	} {
-		fetchURL, err := s.git.FetchURLForRemote(remote.name)
-		if err != nil {
-			return err
-		}
-		if !strings.Contains(fetchURL, remote.path) {
-			return fmt.Errorf("fetch URL does not match, remote=%s path=%s", remote.name, remote.path)
-		}
-		klog.InfoS("git remote setup properly", "remote", "openshift", "fetch-url", fetchURL)
+	if err := s.git.CheckRemotes(); err != nil {
+		return fmt.Errorf("git repo not setup properly: %v", err)
 	}
 
 	// let's find the rebase marker
 	marker := fmt.Sprintf("openshift-rebase-marker:%s", s.target)
 	klog.InfoS("looking for rebase marker", "pattern", marker)
 
-	stopAtSHA, err := s.git.FindRebaseMarkerCommitSHA(marker)
+	stopAtCommit, err := s.git.FindRebaseMarkerCommit(marker)
 	if err != nil {
 		return err
 	}
 
-	s.stopAtSHA = stopAtSHA
-	klog.InfoS("apply in progress", "target", s.target, "rebase-marker-sha", s.stopAtSHA)
+	s.stopAtSHA = stopAtCommit.Hash.String()
+	klog.InfoS("apply in progress", "target", s.target, "rebase-marker-sha",
+		s.stopAtSHA, "message", stopAtCommit.Message)
 
 	return nil
 }
@@ -96,7 +78,8 @@ func (s *processor) exists(r *carry.Commit) (bool, error) {
 
 	var found bool
 	for _, commit := range commits {
-		if strings.Contains(commit.Message, r.MessageWithPrefix) {
+		if strings.Contains(commit.Message, fmt.Sprintf("openshift-rebase:source=%s", r.SHA)) &&
+			strings.Contains(commit.Message, r.MessageWithPrefix) {
 			found = true
 		}
 	}
@@ -104,13 +87,21 @@ func (s *processor) exists(r *carry.Commit) (bool, error) {
 	return found, nil
 }
 
-func (s *processor) cherrypick(r *carry.Commit) error {
+func (s *processor) apply(r *carry.Commit) error {
 	if err := s.git.CherryPick(r.SHA); err != nil {
 		return &CherryPickError{
 			gitErr:  err,
 			message: r.ShortString(),
 		}
 	}
+
+	// chery-pick succeeded, now we need to append rebase metadata
+	// to the commit message
+	metadata := fmt.Sprintf("openshift-rebase:source=%s", r.SHA)
+	if err := s.git.AmendCommitMessage(metadata); err != nil {
+		return fmt.Errorf("failed to amend commit message with rebase metadata - %w", err)
+	}
+
 	return nil
 }
 
@@ -125,7 +116,7 @@ func (s *processor) carry(r *carry.Commit) error {
 	}
 
 	klog.Infof("status=not-picked-in-branch do=cherry-pick - %s", r.ShortString())
-	if err := s.cherrypick(r); err != nil {
+	if err := s.apply(r); err != nil {
 		return err
 	}
 	return nil
@@ -151,7 +142,7 @@ func (s *processor) pick(r *carry.Commit) error {
 	}
 
 	klog.Infof("status=not-merged(upstream) do=cherry-pick - %s", r.ShortString())
-	if err := s.cherrypick(r); err != nil {
+	if err := s.apply(r); err != nil {
 		return err
 	}
 	return nil
