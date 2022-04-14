@@ -6,20 +6,20 @@ import (
 	"os/exec"
 	"runtime"
 
-	"github.com/tkashem/rebase/pkg/carrycommits"
+	"github.com/tkashem/rebase/pkg/carry"
 	"github.com/tkashem/rebase/pkg/git"
 	"k8s.io/klog/v2"
 )
 
-type DoFunc func(*carrycommits.Record) error
+type DoFunc func(*carry.Record) error
 
 type Processor interface {
 	Init() error
 	Done() error
-	Step(*carrycommits.Record) (DoFunc, error)
+	Step(*carry.Record) (DoFunc, error)
 }
 
-func New(reader carrycommits.Reader, target string, overrideFilePath string) (*cmd, error) {
+func New(reader carry.Reader, target string, overrideFilePath string) (*cmd, error) {
 	workingDir, err := os.Getwd()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get working directory: %w", err)
@@ -56,7 +56,7 @@ func New(reader carrycommits.Reader, target string, overrideFilePath string) (*c
 }
 
 type cmd struct {
-	reader    carrycommits.Reader
+	reader    carry.Reader
 	overrider Overrider
 	processor Processor
 }
@@ -72,7 +72,7 @@ func (c *cmd) Run() error {
 	return process(c.processor, commits)
 }
 
-func process(p Processor, commits []*carrycommits.Record) error {
+func process(p Processor, commits []*carry.Record) error {
 	if err := p.Init(); err != nil {
 		return fmt.Errorf("initialization failed with: %w", err)
 	}

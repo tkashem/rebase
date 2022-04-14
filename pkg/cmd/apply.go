@@ -5,7 +5,7 @@ import (
 	"k8s.io/klog/v2"
 
 	"github.com/tkashem/rebase/pkg/apply"
-	"github.com/tkashem/rebase/pkg/carrycommits"
+	"github.com/tkashem/rebase/pkg/carry"
 )
 
 type PickOptions struct {
@@ -23,7 +23,7 @@ func NewPickCommand() *cobra.Command {
 		Example:      "",
 		SilenceUsage: true,
 		RunE: func(c *cobra.Command, args []string) error {
-			reader, err := carrycommits.NewReaderFromFile(options.CarryCommitLogFilePath)
+			reader, err := carry.NewReaderFromFile(options.CarryCommitLogFilePath)
 			if err != nil {
 				return err
 			}

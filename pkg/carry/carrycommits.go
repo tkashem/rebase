@@ -1,4 +1,4 @@
-package carrycommits
+package carry
 
 import (
 	"bufio"

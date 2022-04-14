@@ -3,13 +3,13 @@ package apply
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/tkashem/rebase/pkg/carrycommits"
+	"github.com/tkashem/rebase/pkg/carry"
 	"k8s.io/klog/v2"
 	"os"
 )
 
 type Overrider interface {
-	Override([]*carrycommits.Record)
+	Override([]*carry.Record)
 }
 
 func newOverrider(fpath string) (Overrider, error) {
@@ -22,7 +22,7 @@ func newOverrider(fpath string) (Overrider, error) {
 
 type noOverride struct{}
 
-func (noOverride) Override(commits []*carrycommits.Record) {
+func (noOverride) Override(commits []*carry.Record) {
 	klog.InfoS("override: none specified")
 }
 
@@ -67,7 +67,7 @@ func newOverriderFromFile(fpath string) (*overrider, error) {
 	return &overrider{overrides: o.Overrides}, nil
 }
 
-func (o *overrider) Override(commits []*carrycommits.Record) {
+func (o *overrider) Override(commits []*carry.Record) {
 	o.info()
 	overrides := toMap(o.overrides)
 
