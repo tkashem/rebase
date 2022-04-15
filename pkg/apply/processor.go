@@ -22,9 +22,10 @@ func (e *CherryPickError) Error() string {
 }
 
 type processor struct {
-	git    git.Git
-	github git.GitHub
-	target string
+	git                      git.Git
+	github                   git.GitHub
+	prompt                   carry.Prompt
+	target, marker, metadata string
 
 	// filled by Init
 	stopAtSHA string
@@ -35,18 +36,8 @@ func (s *processor) Init() error {
 		return fmt.Errorf("git repo not setup properly: %v", err)
 	}
 
-	// let's find the rebase marker
-	marker := fmt.Sprintf("openshift-rebase-marker:%s", s.target)
-	klog.InfoS("looking for rebase marker", "pattern", marker)
-
-	stopAtCommit, err := s.git.FindRebaseMarkerCommit(marker)
-	if err != nil {
-		return err
-	}
-
-	s.stopAtSHA = stopAtCommit.Hash.String()
-	klog.InfoS("apply in progress", "target", s.target, "rebase-marker-sha",
-		s.stopAtSHA, "message", stopAtCommit.Message)
+	klog.InfoS("apply in progress", "target", s.target, "marker", s.marker, "rebase-marker-sha",
+		s.stopAtSHA, "commit-amend-metadata", s.metadata)
 
 	return nil
 }
@@ -70,35 +61,54 @@ func (s *processor) Step(r *carry.Commit) (DoFunc, error) {
 	return nil, fmt.Errorf("invalid commit type: %s", r.CommitType)
 }
 
-func (s *processor) exists(r *carry.Commit) (bool, error) {
+func (s *processor) picked(r *carry.Commit) (bool, error) {
 	commits, err := s.git.Log(s.stopAtSHA)
 	if err != nil {
 		return false, fmt.Errorf("git log failed with error: %w", err)
 	}
 
-	var found bool
 	for _, commit := range commits {
-		if strings.Contains(commit.Message, fmt.Sprintf("openshift-rebase:source=%s", r.SHA)) &&
+		if strings.Contains(commit.Message, fmt.Sprintf("%s=%s", s.metadata, r.SHA)) &&
 			strings.Contains(commit.Message, r.MessageWithPrefix) {
-			found = true
+			return true, nil
 		}
 	}
 
-	return found, nil
+	return false, nil
 }
 
-func (s *processor) apply(r *carry.Commit) error {
-	if err := s.git.CherryPick(r.SHA); err != nil {
-		return &CherryPickError{
-			gitErr:  err,
-			message: r.ShortString(),
+func (s *processor) cherrypicked(r *carry.Commit) (bool, error) {
+	head, err := s.git.Head()
+	if err != nil {
+		return false, fmt.Errorf("failed to get HEAD: %w", err)
+	}
+
+	if strings.Contains(head.Message, r.MessageWithPrefix) {
+		// looks like conflict was resolved abd cherry-pick done
+		return true, nil
+	}
+
+	return false, nil
+}
+
+func (s *processor) apply(r *carry.Commit, cherrypick bool) error {
+	if cherrypick {
+		if err := s.git.CherryPick(r.SHA); err != nil {
+			return &CherryPickError{
+				gitErr:  err,
+				message: r.ShortString(),
+			}
 		}
 	}
 
 	// chery-pick succeeded, now we need to append rebase metadata
 	// to the commit message
-	metadata := fmt.Sprintf("openshift-rebase:source=%s", r.SHA)
-	if err := s.git.AmendCommitMessage(metadata); err != nil {
+	if err := s.git.AmendCommitMessage(func(current string) []string {
+		return []string{
+			removePreviousRebaseMetadata(current),
+			fmt.Sprintf("%s=%s", s.metadata, r.SHA),
+		}
+	}); err != nil {
 		return fmt.Errorf("failed to amend commit message with rebase metadata - %w", err)
 	}
 
@@ -106,7 +116,7 @@ func (s *processor) apply(r *carry.Commit) error {
 }
 
 func (s *processor) carry(r *carry.Commit) error {
-	picked, err := s.exists(r)
+	picked, err := s.picked(r)
 	if err != nil {
 		return err
 	}
@@ -115,8 +125,19 @@ func (s *processor) carry(r *carry.Commit) error {
 		return nil
 	}
 
+	// did cherry pick abort last time due to conflict?
+	cherrypicked, err := s.cherrypicked(r)
+	if err != nil {
+		return err
+	}
+
+	if cherrypicked {
+		klog.Infof("status=cherry-pick-completed do=apply-metadata - %s", r.ShortString())
+		return s.apply(r, false)
+	}
+
 	klog.Infof("status=not-picked-in-branch do=cherry-pick - %s", r.ShortString())
-	if err := s.apply(r); err != nil {
+	if err := s.apply(r, true); err != nil {
 		return err
 	}
 	return nil
@@ -131,25 +152,15 @@ func (s *processor) pick(r *carry.Commit) error {
 		klog.Infof("status=merged(upstream) do=skip - %s", r.ShortString())
 		return nil
 	}
+	klog.Infof("upstream PR(%s) status=not-merged - %s", r.UpstreamPR, r.MessageWithPrefix)
 
-	picked, err := s.exists(r)
-	if err != nil {
-		return err
-	}
-	if picked {
-		klog.Infof("status=picked-in-branch do=noop - %s", r.ShortString())
-		return nil
-	}
-
-	klog.Infof("status=not-merged(upstream) do=cherry-pick - %s", r.ShortString())
-	if err := s.apply(r); err != nil {
-		return err
-	}
-	return nil
+	return s.carry(r)
 }
 
 func (s *processor) drop(r *carry.Commit) error {
 	klog.Infof("status= do=? - %s", r.ShortString())
+	// do we al
+
 	drop, err := prompt(fmt.Sprintf("do you want to drop(%s)?[Yes/No]:", r.SHA))
 	if err != nil {
 		return err
@@ -183,4 +194,9 @@ func prompt(msg string) (bool, error) {
 	default:
 		return false, nil
 	}
+}
+
+func removePreviousRebaseMetadata(msg string) string {
+	// TODO: remove existing rebase metadata tag if any
+	return msg
 }

@@ -14,9 +14,10 @@ import (
 type Git interface {
 	CheckRemotes() error
 	FindRebaseMarkerCommit(marker string) (*gitv5object.Commit, error)
+	Head() (*gitv5object.Commit, error)
 	Log(stopAtHash string) ([]*gitv5object.Commit, error)
 	CherryPick(sha string) error
-	AmendCommitMessage(append string) error
+	AmendCommitMessage(f func(string) []string) error
 }
 
 func OpenGit(path string) (Git, error) {
@@ -126,14 +127,19 @@ func (git *git) CherryPick(sha string) error {
 	return nil
 }
 
-func (git *git) AmendCommitMessage(append string) error {
+func (git *git) AmendCommitMessage(f func(string) []string) error {
 	var err error
 	current, err := git.getCommitMessageAtHead()
 	if err != nil {
 		return err
 	}
 
-	cmd := exec.Command("git", "commit", "--amend", "-m", current, "-m", append)
+	args := []string{"commit", "--amend"}
+	for _, msg := range f(current) {
+		args = append(args, "-m", msg)
+	}
+
+	cmd := exec.Command("git", args...)
 	klog.InfoS("amend commit message", "command", cmd.String())
 
 	var stdoutStderr []byte
@@ -149,6 +155,20 @@ func (git *git) AmendCommitMessage(append string) error {
 		return fmt.Errorf("git cherry-pick failed: %w", err)
 	}
 	return nil
+}
+
+func (git *git) Head() (*gitv5object.Commit, error) {
+	reference, err := git.repository.Head()
+	if err != nil {
+		return nil, err
+	}
+
+	commit, err := git.repository.CommitObject(reference.Hash())
+	if err != nil {
+		return nil, err
+	}
+
+	return commit, nil
 }
 
 func (git *git) getCommitMessageAtHead() (string, error) {

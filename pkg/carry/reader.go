@@ -6,14 +6,6 @@ import (
 	"os"
 )
 
-type CommitReader interface {
-	Read() ([]*Commit, error)
-}
-
-func NewCommitReaderFromFile(fpath string) (CommitReader, error) {
-	return &reader{fpath: fpath}, nil
-}
-
 type Commit struct {
 	SHA               string
 	CommitType        string
@@ -31,11 +23,11 @@ func (r *Commit) ShortString() string {
 	return fmt.Sprintf("%s(%s): %s - %s", r.SHA, r.CommitType, r.Message, r.OpenShiftCommit)
 }
 
-type reader struct {
+type csvReader struct {
 	fpath string
 }
 
-func (r *reader) Read() ([]*Commit, error) {
+func (r *csvReader) Read() ([]*Commit, error) {
 	file, err := os.Open(r.fpath)
 	if err != nil {
 		return nil, fmt.Errorf("error loading file %q - %w", r.fpath, err)

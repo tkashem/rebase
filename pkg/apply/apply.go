@@ -19,7 +19,7 @@ type Processor interface {
 	Step(*carry.Commit) (DoFunc, error)
 }
 
-func New(reader carry.CommitReader, target string, overrideFilePath string) (*cmd, error) {
+func New(reader carry.CommitReader, target string) (*cmd, error) {
 	workingDir, err := os.Getwd()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get working directory: %w", err)
@@ -39,25 +39,31 @@ func New(reader carry.CommitReader, target string, overrideFilePath string) (*cm
 		return nil, fmt.Errorf("failed to create githubAPI client - %w", err)
 	}
 
-	overrider, err := newOverrider(overrideFilePath)
+	marker := fmt.Sprintf("openshift-rebase(%s):marker", target)
+
+	// let's find the rebase marker
+	klog.InfoS("looking for rebase marker", "pattern", marker)
+	stopAtCommit, err := gitAPI.FindRebaseMarkerCommit(marker)
 	if err != nil {
-		return nil, fmt.Errorf("failed to load commit overrides from %q - %w", overrideFilePath, err)
+		return nil, err
 	}
+	klog.InfoS("found rebase marker", "commit", stopAtCommit.Message)
 
 	return &cmd{
 		reader: reader,
 		processor: &processor{
-			git:    gitAPI,
-			github: githubAPI,
-			target: target,
+			git:       gitAPI,
+			github:    githubAPI,
+			target:    target,
+			marker:    marker,
+			metadata:  fmt.Sprintf("openshift-rebase(%s):source", target),
+			stopAtSHA: stopAtCommit.Hash.String(),
 		},
-		overrider: overrider,
 	}, nil
 }
 
 type cmd struct {
 	reader    carry.CommitReader
-	overrider Overrider
 	processor Processor
 }
 
@@ -67,20 +73,14 @@ func (c *cmd) Run() error {
 		return err
 	}
 
-	// apply override, before we start processing
-	c.overrider.Override(commits)
-	return process(c.processor, commits)
-}
-
-func process(p Processor, commits []*carry.Commit) error {
-	if err := p.Init(); err != nil {
+	if err := c.processor.Init(); err != nil {
 		return fmt.Errorf("initialization failed with: %w", err)
 	}
 
 	// the logs are in right order, the oldest commit should be applied first
 	for i, _ := range commits {
 		commit := commits[i]
-		doFn, err := p.Step(commit)
+		doFn, err := c.processor.Step(commit)
 		if err != nil {
 			return err
 		}
@@ -89,7 +89,7 @@ func process(p Processor, commits []*carry.Commit) error {
 		}
 	}
 
-	if err := p.Done(); err != nil {
+	if err := c.processor.Done(); err != nil {
 		return fmt.Errorf("cleaup failed with: %w", err)
 	}
 

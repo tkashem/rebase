@@ -1,8 +1,11 @@
 package verify
 
 import (
+	"bufio"
 	"fmt"
+	"github.com/google/go-cmp/cmp"
 	"os"
+	"strings"
 
 	gitv5object "github.com/go-git/go-git/v5/plumbing/object"
 	"github.com/tkashem/rebase/pkg/carry"
@@ -25,16 +28,18 @@ func New(reader carry.CommitReader, target string) (*cmd, error) {
 	klog.InfoS("rebase target", "version", target)
 
 	return &cmd{
-		reader: reader,
-		git:    gitAPI,
-		target: target,
+		reader:   reader,
+		git:      gitAPI,
+		target:   target,
+		marker:   fmt.Sprintf("openshift-rebase(%s):marker", target),
+		metadata: fmt.Sprintf("openshift-rebase(%s):source", target),
 	}, nil
 }
 
 type cmd struct {
-	reader carry.CommitReader
-	git    git.Git
-	target string
+	reader                   carry.CommitReader
+	git                      git.Git
+	target, marker, metadata string
 }
 
 func (c *cmd) Run() error {
@@ -42,10 +47,9 @@ func (c *cmd) Run() error {
 		return fmt.Errorf("git repo not setup properly: %v", err)
 	}
 
-	marker := fmt.Sprintf("openshift-rebase-marker:%s", c.target)
-	klog.InfoS("rebase marker", "pattern", marker)
+	klog.InfoS("rebase marker", "target", c.target, "pattern", c.marker, "metadata", c.metadata)
 
-	markerCommit, err := c.git.FindRebaseMarkerCommit(marker)
+	markerCommit, err := c.git.FindRebaseMarkerCommit(c.marker)
 	if err != nil {
 		return err
 	}
@@ -63,10 +67,67 @@ func (c *cmd) Run() error {
 	if err != nil {
 		return err
 	}
+	// the last commit is the marker commit, we can exclude it
+	if len(picked) > 0 {
+		picked = picked[0 : len(picked)-1]
+	}
 
-	return verify(carries, picked)
-}
-
-func verify(carries []*carry.Commit, picked []*gitv5object.Commit) error {
+	carries, _ = sanitize(carries)
+	klog.Infof("stats: carries(%d), picked(%d)", len(carries), len(picked))
+	klog.Infof("diff: \n%s", cmp.Diff(c.expected(carries), c.got(picked)))
 	return nil
 }
+
+func sanitize(all []*carry.Commit) ([]*carry.Commit, []*carry.Commit) {
+	dropped := make([]*carry.Commit, 0)
+	carries := make([]*carry.Commit, 0)
+
+	for i := range all {
+		if all[i].CommitType == "drop" {
+			dropped = append(dropped, all[i])
+			continue
+		}
+		carries = append(carries, all[i])
+	}
+
+	return carries, dropped
+}
+
+func (c *cmd) getSourceCommitHash(msg string) string {
+	reader := strings.NewReader(msg)
+	scanner := bufio.NewScanner(reader)
+	for scanner.Scan() {
+		if strings.Contains(scanner.Text(), c.metadata) {
+			split := strings.Split(scanner.Text(), "=")
+			if len(split) >= 2 {
+				return split[1]
+			}
+		}
+	}
+
+	return ""
+}
+
+func (c *cmd) got(picked []*gitv5object.Commit) []descriptor {
+	ex := make([]descriptor, 0)
+	for i := len(picked) - 1; i >= 0; i-- {
+		split := strings.SplitN(picked[i].Message, "\n", 2)
+		ex = append(ex, descriptor{Commit: c.getSourceCommitHash(picked[i].Message), Message: split[0]})
+	}
+	return ex
+}
+
+func (c *cmd) expected(carries []*carry.Commit) []descriptor {
+	ex := make([]descriptor, 0)
+	for _, carry := range carries {
+		ex = append(ex, descriptor{Commit: carry.SHA, Message: carry.MessageWithPrefix})
+	}
+	return ex
+}
+
+type descriptor struct {
+	Commit  string
+	Message string
+}
+
+func (d descriptor) String() string { return fmt.Sprintf("(%s): %s", d.Commit, d.Message) }

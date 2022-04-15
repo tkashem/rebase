@@ -1,0 +1,10 @@
+overrides:
+# UPSTREAM: <carry>: /readyz update stacktrace pred for httplog so that it doesn't log stack trace when HTTP 500 response is returned
+# We don't need it any longer, due to https://github.com/kubernetes/kubernetes/pull/107034
+- sha: c7d14787027
+  do: drop
+
+# UPSTREAM: <carry>: Disable CSI migration on OpenStack Cinder
+# slack thread: https://coreos.slack.com/archives/C039R7SA1MZ/p1650289743106579
+- sha: 828d775b1f5
+  do: drop

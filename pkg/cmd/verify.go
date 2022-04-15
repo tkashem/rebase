@@ -1,18 +1,15 @@
 package cmd
 
 import (
-	"fmt"
 	"github.com/spf13/cobra"
 	"k8s.io/klog/v2"
-	"os"
 
 	"github.com/tkashem/rebase/pkg/carry"
 	"github.com/tkashem/rebase/pkg/verify"
 )
 
 type VerifyOptions struct {
-	Target                 string
-	CarryCommitLogFilePath string
+	Options
 }
 
 func NewVerifyCommand() *cobra.Command {
@@ -31,7 +28,7 @@ func NewVerifyCommand() *cobra.Command {
 			// TODO: today the carries are obtained from a CSV file, but in
 			//  the following rebase we can generate them on the fly using
 			//  the openshift rebase marker
-			reader, err := carry.NewCommitReaderFromFile(options.CarryCommitLogFilePath)
+			reader, err := carry.NewCommitReaderFromFile(options.CarryCommitLogFilePath, options.OverrideFilePath)
 			if err != nil {
 				return err
 			}
@@ -50,23 +47,6 @@ func NewVerifyCommand() *cobra.Command {
 		},
 	}
 
-	cmd.Flags().StringVar(&options.CarryCommitLogFilePath, "carry-commit-file", options.CarryCommitLogFilePath, "file containing all commit logs")
-	cmd.Flags().StringVar(&options.Target, "target", options.Target, "rebase target, ie. v1.24")
-
+	options.AddFlags(cmd.Flags())
 	return cmd
-}
-
-func (o *VerifyOptions) Validate() error {
-	stat, err := os.Stat(o.CarryCommitLogFilePath)
-	if err != nil {
-		return fmt.Errorf("invalid path: %q - %w", o.CarryCommitLogFilePath, err)
-	}
-	if stat.IsDir() {
-		return fmt.Errorf("must be a file: %q", err)
-	}
-	if len(o.Target) == 0 {
-		return fmt.Errorf("must be a valid value ie. v1.24")
-	}
-
-	return nil
 }

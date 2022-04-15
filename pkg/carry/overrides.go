@@ -1,15 +1,15 @@
-package apply
+package carry
 
 import (
-	"encoding/json"
 	"fmt"
-	"github.com/tkashem/rebase/pkg/carry"
-	"k8s.io/klog/v2"
 	"os"
+
+	utilyaml "k8s.io/apimachinery/pkg/util/yaml"
+	"k8s.io/klog/v2"
 )
 
 type Overrider interface {
-	Override([]*carry.Commit)
+	Override([]*Commit)
 }
 
 func newOverrider(fpath string) (Overrider, error) {
@@ -22,12 +22,8 @@ func newOverrider(fpath string) (Overrider, error) {
 
 type noOverride struct{}
 
-func (noOverride) Override(commits []*carry.Commit) {
+func (noOverride) Override(commits []*Commit) {
 	klog.InfoS("override: none specified")
-}
-
-type Overrides struct {
-	Overrides []Override `json:"overrides,omitempty"`
 }
 
 type Override struct {
@@ -57,9 +53,12 @@ func newOverriderFromFile(fpath string) (*overrider, error) {
 	}
 
 	defer file.Close()
-	decoder := json.NewDecoder(file)
 
-	o := &Overrides{}
+	decoder := utilyaml.NewYAMLToJSONDecoder(file)
+	o := &struct {
+		Overrides []Override `json:"overrides,omitempty"`
+	}{}
+
 	if err := decoder.Decode(o); err != nil {
 		return nil, fmt.Errorf("failed to decode overrides from %q - %w", fpath, err)
 	}
@@ -67,7 +66,7 @@ func newOverriderFromFile(fpath string) (*overrider, error) {
 	return &overrider{overrides: o.Overrides}, nil
 }
 
-func (o *overrider) Override(commits []*carry.Commit) {
+func (o *overrider) Override(commits []*Commit) {
 	o.info()
 	overrides := toMap(o.overrides)
 
