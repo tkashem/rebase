@@ -115,7 +115,7 @@ func (git *git) CherryPick(sha string) error {
 	klog.InfoS("executing cherry-pick", "command", cmd.String())
 	defer func() {
 		if len(stdoutStderr) > 0 {
-			defer klog.Infof(">>>>>>>>>>>>>>>>>>>> OUTPUT: END >>>>>>>>>>>>>>>>>>>>>>")
+			defer klog.Infof(">>>>>>>>>>>>>>>>>>>> OUTPUT: END >>>>>>>>>>>>>>>>>>>>>>\n")
 			klog.Infof("<<<<<<<<<<<<<<<<<<<< OUTPUT: START <<<<<<<<<<<<<<<<<<<<\n%s", stdoutStderr)
 		}
 	}()
@@ -134,7 +134,7 @@ func (git *git) AmendCommitMessage(f func(string) []string) error {
 		return err
 	}
 
-	args := []string{"commit", "--amend"}
+	args := []string{"commit", "--allow-empty", "--amend"}
 	for _, msg := range f(current) {
 		args = append(args, "-m", msg)
 	}
@@ -145,7 +145,7 @@ func (git *git) AmendCommitMessage(f func(string) []string) error {
 	var stdoutStderr []byte
 	defer func() {
 		if len(stdoutStderr) > 0 {
-			defer klog.Infof(">>>>>>>>>>>>>>>>>>>> OUTPUT: END >>>>>>>>>>>>>>>>>>>>>>")
+			defer klog.Infof(">>>>>>>>>>>>>>>>>>>> OUTPUT: END >>>>>>>>>>>>>>>>>>>>>>\n")
 			klog.Infof("<<<<<<<<<<<<<<<<<<<< OUTPUT: START <<<<<<<<<<<<<<<<<<<<\n%s", stdoutStderr)
 		}
 	}()

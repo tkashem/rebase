@@ -72,40 +72,25 @@ func (c *cmd) Run() error {
 		picked = picked[0 : len(picked)-1]
 	}
 
-	carries, _ = sanitize(carries)
-	klog.Infof("stats: carries(%d), picked(%d)", len(carries), len(picked))
-	klog.Infof("diff: \n%s", cmp.Diff(c.expected(carries), c.got(picked)))
+	newCarries, drops := sanitize(carries)
+	klog.Infof("stats: total(%d), carries(%d), drops(%d), picked(%d)", len(carries), len(newCarries), len(drops), len(picked))
+	klog.Infof("diff: \n%s", cmp.Diff(c.expected(newCarries), c.got(picked)))
 	return nil
 }
 
 func sanitize(all []*carry.Commit) ([]*carry.Commit, []*carry.Commit) {
-	dropped := make([]*carry.Commit, 0)
+	drops := make([]*carry.Commit, 0)
 	carries := make([]*carry.Commit, 0)
 
 	for i := range all {
 		if all[i].CommitType == "drop" {
-			dropped = append(dropped, all[i])
+			drops = append(drops, all[i])
 			continue
 		}
 		carries = append(carries, all[i])
 	}
 
-	return carries, dropped
-}
-
-func (c *cmd) getSourceCommitHash(msg string) string {
-	reader := strings.NewReader(msg)
-	scanner := bufio.NewScanner(reader)
-	for scanner.Scan() {
-		if strings.Contains(scanner.Text(), c.metadata) {
-			split := strings.Split(scanner.Text(), "=")
-			if len(split) >= 2 {
-				return split[1]
-			}
-		}
-	}
-
-	return ""
+	return carries, drops
 }
 
 func (c *cmd) got(picked []*gitv5object.Commit) []descriptor {
@@ -123,6 +108,21 @@ func (c *cmd) expected(carries []*carry.Commit) []descriptor {
 		ex = append(ex, descriptor{Commit: carry.SHA, Message: carry.MessageWithPrefix})
 	}
 	return ex
+}
+
+func (c *cmd) getSourceCommitHash(msg string) string {
+	reader := strings.NewReader(msg)
+	scanner := bufio.NewScanner(reader)
+	for scanner.Scan() {
+		if strings.Contains(scanner.Text(), c.metadata) {
+			split := strings.Split(scanner.Text(), "=")
+			if len(split) >= 2 {
+				return split[1]
+			}
+		}
+	}
+
+	return ""
 }
 
 type descriptor struct {

@@ -22,6 +22,7 @@ func (e *CherryPickError) Error() string {
 }
 
 type processor struct {
+	override                 carry.Prompt
 	git                      git.Git
 	github                   git.GitHub
 	prompt                   carry.Prompt
@@ -43,6 +44,7 @@ func (s *processor) Init() error {
 }
 
 func (s *processor) Done() error {
+	klog.InfoS("apply has completed")
 	return nil
 }
 
@@ -158,16 +160,19 @@ func (s *processor) pick(r *carry.Commit) error {
 }
 
 func (s *processor) drop(r *carry.Commit) error {
-	klog.Infof("status= do=? - %s", r.ShortString())
-	// do we al
+	if drop := s.override.ShouldDrop(r.SHA); drop {
+		klog.Infof("status=drop(override) do=skip - %s", r.ShortString())
+		return nil
+	}
 
+	klog.Infof("type=%s do=? - %s", r.CommitType, r.ShortString())
 	drop, err := prompt(fmt.Sprintf("do you want to drop(%s)?[Yes/No]:", r.SHA))
 	if err != nil {
 		return err
 	}
 
 	if drop {
-		klog.Infof("status= do=skip - %s", r.ShortString())
+		klog.Infof("status=drop(prompt) do=skip - %s", r.ShortString())
 		return nil
 	}
 
@@ -191,8 +196,10 @@ func prompt(msg string) (bool, error) {
 	switch {
 	case answer == "yes" || answer == "y":
 		return true, nil
-	default:
+	case answer == "no" || answer == "n":
 		return false, nil
+	default:
+		return false, fmt.Errorf("invalid answer: %s", answer)
 	}
 }
 

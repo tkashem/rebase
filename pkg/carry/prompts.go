@@ -8,15 +8,20 @@ import (
 )
 
 type Prompt interface {
-	GetAnswer(dropSHA string) string
+	ShouldDrop(dropSHA string) bool
 }
 
 type prompt struct {
-	answers map[string]string
+	answers []Override
 }
 
-func (p *prompt) GetAnswer(dropSHA string) string {
-	return p.answers[dropSHA]
+func (p *prompt) ShouldDrop(dropSHA string) bool {
+	for _, override := range p.answers {
+		if override.SHA == dropSHA && override.Do == "drop" {
+			return true
+		}
+	}
+	return false
 }
 
 func NewPromptsFromFile(fpath string) (Prompt, error) {
@@ -38,12 +43,12 @@ func NewPromptsFromFile(fpath string) (Prompt, error) {
 
 	decoder := utilyaml.NewYAMLToJSONDecoder(file)
 	o := &struct {
-		Prompts map[string]string `json:"prompts,omitempty"`
+		Overrides []Override `json:"overrides,omitempty"`
 	}{}
 
 	if err := decoder.Decode(o); err != nil {
 		return nil, fmt.Errorf("failed to decode prompts from %q - %w", fpath, err)
 	}
 
-	return &prompt{answers: o.Prompts}, nil
+	return &prompt{answers: o.Overrides}, nil
 }

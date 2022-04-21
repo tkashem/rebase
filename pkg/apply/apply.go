@@ -19,7 +19,7 @@ type Processor interface {
 	Step(*carry.Commit) (DoFunc, error)
 }
 
-func New(reader carry.CommitReader, target string) (*cmd, error) {
+func New(reader carry.CommitReader, override carry.Prompt, target string) (*cmd, error) {
 	workingDir, err := os.Getwd()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get working directory: %w", err)
@@ -52,6 +52,7 @@ func New(reader carry.CommitReader, target string) (*cmd, error) {
 	return &cmd{
 		reader: reader,
 		processor: &processor{
+			override:  override,
 			git:       gitAPI,
 			github:    githubAPI,
 			target:    target,

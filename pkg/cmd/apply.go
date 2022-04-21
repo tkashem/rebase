@@ -29,9 +29,13 @@ func NewApplyCommand() *cobra.Command {
 			if err != nil {
 				return err
 			}
+			override, err := carry.NewPromptsFromFile(options.OverrideFilePath)
+			if err != nil {
+				return err
+			}
 
 			var runner Runner
-			if runner, err = apply.New(reader, options.Target); err != nil {
+			if runner, err = apply.New(reader, override, options.Target); err != nil {
 				return err
 			}
 

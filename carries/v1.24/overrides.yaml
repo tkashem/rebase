@@ -8,3 +8,127 @@ overrides:
 # slack thread: https://coreos.slack.com/archives/C039R7SA1MZ/p1650289743106579
 - sha: 828d775b1f5
   do: drop
+
+# UPSTREAM: <drop>: Update hyperkube dockerfile version
+# https://github.com/openshift/kubernetes/commit/5f078e5b1d1?w=1
+- sha: 5f078e5b1d1
+  do: drop
+
+# UPSTREAM: <drop>: pin openshift libraries to 1.23
+# https://github.com/openshift/kubernetes/commit/764ecff8094?w=1
+- sha: 764ecff8094
+  do: drop
+
+# UPSTREAM: <drop>: pin ginkgo to openshift fork at origin-4.7 branch
+# https://github.com/openshift/kubernetes/commit/9ef6a60dfaa?w=1
+- sha: 9ef6a60dfaa
+  do: drop
+
+# UPSTREAM: <drop>: go mod tidy && go mod vendor
+# https://github.com/openshift/kubernetes/commit/aaa667be123?w=1
+- sha: aaa667be123
+  do: drop
+
+# UPSTREAM: <drop>: Fix e2e test to solve ginkgo panic with make update
+# https://github.com/openshift/kubernetes/commit/372067bd71e?w=1
+# keep it for now
+- sha: 372067bd71e
+  do: carry
+
+# UPSTREAM: <drop>: hack/update-vendor.sh
+# https://github.com/openshift/kubernetes/commit/bd57bd11f98?w=1
+- sha: bd57bd11f98
+  do: drop
+
+# UPSTREAM: <drop>: run go mod vendor in k8s.io/code-generator directly
+# https://github.com/openshift/kubernetes/commit/2d83e21697f?w=1
+- sha: 2d83e21697f
+  do: drop
+
+# UPSTREAM: <drop>: make update
+# https://github.com/openshift/kubernetes/commit/e6f4cefb705?w=1
+- sha: e6f4cefb705
+  do: drop
+
+# UPSTREAM: <drop>: run ./hack/update-netparse-cve.sh
+# https://github.com/openshift/kubernetes/commit/f885375eb71?w=1
+# we might have to re run it
+- sha: f885375eb71
+  do: drop
+
+# UPSTREAM: <drop>: Fix up TestAuthenticationAuditAnnotationsDefaultChain
+# https://github.com/openshift/kubernetes/commit/c150537aa35?w=1
+# we can squash it into a relevant carry if possible
+- sha: c150537aa35
+  do: carry
+
+# UPSTREAM: <drop>: disable failing verify tests
+# https://github.com/openshift/kubernetes/commit/40a1245ccff?w=1
+- sha: 40a1245ccff
+  do: drop
+
+# UPSTREAM: <drop>: Disable alpha test for 1.23
+# https://github.com/openshift/kubernetes/commit/04c0f0abd46?w=1
+# GRPCContainerProbe is beta upstream, so we should not disable the test
+- sha: 04c0f0abd46
+  do: drop
+
+# UPSTREAM: <drop>: Disable multiAZ topology hints test
+# https://github.com/openshift/kubernetes/commit/8446fce195d?w=1
+# drop it for now
+- sha: 8446fce195d
+  do: drop
+
+# UPSTREAM: <drop>: Disable Conntrack UDP traffic test
+# https://github.com/openshift/kubernetes/commit/7bb0ec5e3b0?w=1
+- sha: 7bb0ec5e3b0
+  do: drop
+
+# UPSTREAM: <drop>: backport k8s.io/utils fix
+# https://github.com/openshift/kubernetes/commit/014ae72711e?w=1
+# we want to re-run it
+- sha: 014ae72711e
+  do: drop
+
+# UPSTREAM: <drop>: Revert "Merge pull request #106306 from pawbana/change_bucketing_for_request_latency_metric"
+# https://github.com/openshift/kubernetes/commit/de1d569cd1f?w=1
+# #106306 caused the latency regression in lat rebase, we already have fixed our budget burn alerts
+# if not we will need to carry it, for now let's drop it.
+- sha: de1d569cd1f
+  do: drop
+
+# UPSTREAM: revert: 1130: Revert "Merge pull request #106306 from pawbana/change_bucketing_for_request_latency_metric"
+#  https://github.com/openshift/kubernetes/commit/f0c508d8082?w=1
+- sha: f0c508d8082
+  do: drop
+
+# UPSTREAM: <drop>: manually resolve conflicts
+# https://github.com/openshift/kubernetes/commit/89be164e1a0?w=1
+- sha: 89be164e1a0
+  do: drop
+
+# UPSTREAM: <drop>: hack/update-vendor.sh, make update and update image
+# https://github.com/openshift/kubernetes/commit/283b34c7c1d?w=1
+- sha: 283b34c7c1d
+  do: drop
+
+# UPSTREAM: <drop>: update vendor files
+# https://github.com/openshift/kubernetes/commit/c77caa826a0?w=1
+- sha: c77caa826a0
+  do: drop
+
+# UPSTREAM: <drop>: Ignore container notfound error while getPodstatuses
+# https://github.com/openshift/kubernetes/commit/7447f799dd4?w=1
+# talked to the author, we are dropping it.
+- sha: 7447f799dd4
+  do: drop
+
+# UPSTREAM: <drop>: zero-diff to pick up tags for versions
+# https://github.com/openshift/kubernetes/commit/801ac6f987f?w=1
+- sha: 801ac6f987f
+  do: drop
+
+# UPSTREAM: <drop>: bump(apiserver-library-go): inclusion of seccompProfile fields in SCC admission
+# https://github.com/openshift/kubernetes/commit/b99c8007535?w=1
+- sha: b99c8007535
+  do: drop
