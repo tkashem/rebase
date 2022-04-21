@@ -19,7 +19,7 @@ type Processor interface {
 	Step(*carry.Commit) (DoFunc, error)
 }
 
-func New(reader carry.CommitReader, override carry.Prompt, target string) (*cmd, error) {
+func New(reader carry.CommitReader, override carry.Prompt, target string, cherryPickFromSHA string) (*cmd, error) {
 	workingDir, err := os.Getwd()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get working directory: %w", err)
@@ -43,11 +43,22 @@ func New(reader carry.CommitReader, override carry.Prompt, target string) (*cmd,
 
 	// let's find the rebase marker
 	klog.InfoS("looking for rebase marker", "pattern", marker)
-	stopAtCommit, err := gitAPI.FindRebaseMarkerCommit(marker)
+	stopAtCommit, err := gitAPI.FindRebaseMarkerCommit("", marker)
 	if err != nil {
 		return nil, err
 	}
 	klog.InfoS("found rebase marker", "commit", stopAtCommit.Message)
+
+	var cherryStopAtSHA string
+	if len(cherryPickFromSHA) > 0 {
+		klog.InfoS("looking for rebase marker for cherry-pick branch", "pattern", marker)
+		cherryPickStopAt, err := gitAPI.FindRebaseMarkerCommit(cherryPickFromSHA, marker)
+		if err != nil {
+			return nil, err
+		}
+		klog.InfoS("found rebase marker for cherry-pick branch", "commit", cherryPickStopAt.Message)
+		cherryStopAtSHA = cherryPickStopAt.Hash.String()
+	}
 
 	return &cmd{
 		reader: reader,
@@ -59,6 +70,9 @@ func New(reader carry.CommitReader, override carry.Prompt, target string) (*cmd,
 			marker:    marker,
 			metadata:  fmt.Sprintf("openshift-rebase(%s):source", target),
 			stopAtSHA: stopAtCommit.Hash.String(),
+
+			cherryPickFromSHA: cherryPickFromSHA,
+			cherryStopAtSHA:   cherryStopAtSHA,
 		},
 	}, nil
 }

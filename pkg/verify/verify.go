@@ -3,9 +3,10 @@ package verify
 import (
 	"bufio"
 	"fmt"
-	"github.com/google/go-cmp/cmp"
 	"os"
 	"strings"
+
+	"github.com/google/go-cmp/cmp"
 
 	gitv5object "github.com/go-git/go-git/v5/plumbing/object"
 	"github.com/tkashem/rebase/pkg/carry"
@@ -49,7 +50,7 @@ func (c *cmd) Run() error {
 
 	klog.InfoS("rebase marker", "target", c.target, "pattern", c.marker, "metadata", c.metadata)
 
-	markerCommit, err := c.git.FindRebaseMarkerCommit(c.marker)
+	markerCommit, err := c.git.FindRebaseMarkerCommit("", c.marker)
 	if err != nil {
 		return err
 	}
@@ -63,7 +64,7 @@ func (c *cmd) Run() error {
 	}
 
 	// this is the list of commits picked in this branch
-	picked, err := c.git.Log(markerCommit.Hash.String())
+	picked, err := c.git.Log("", markerCommit.Hash.String())
 	if err != nil {
 		return err
 	}

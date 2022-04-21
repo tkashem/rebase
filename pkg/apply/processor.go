@@ -30,6 +30,8 @@ type processor struct {
 
 	// filled by Init
 	stopAtSHA string
+
+	cherryPickFromSHA, cherryStopAtSHA string
 }
 
 func (s *processor) Init() error {
@@ -38,7 +40,7 @@ func (s *processor) Init() error {
 	}
 
 	klog.InfoS("apply in progress", "target", s.target, "marker", s.marker, "rebase-marker-sha",
-		s.stopAtSHA, "commit-amend-metadata", s.metadata)
+		s.stopAtSHA, "commit-amend-metadata", s.metadata, "pick-cherry-picks-from", s.cherryPickFromSHA)
 
 	return nil
 }
@@ -64,7 +66,7 @@ func (s *processor) Step(r *carry.Commit) (DoFunc, error) {
 }
 
 func (s *processor) picked(r *carry.Commit) (bool, error) {
-	commits, err := s.git.Log(s.stopAtSHA)
+	commits, err := s.git.Log("", s.stopAtSHA)
 	if err != nil {
 		return false, fmt.Errorf("git log failed with error: %w", err)
 	}
@@ -93,13 +95,41 @@ func (s *processor) cherrypicked(r *carry.Commit) (bool, error) {
 	return false, nil
 }
 
+func (s *processor) findCherryPickedCommit(r *carry.Commit) (string, error) {
+	if len(s.cherryPickFromSHA) == 0 {
+		return "", nil
+	}
+
+	commits, err := s.git.Log(s.cherryPickFromSHA, s.cherryStopAtSHA)
+	if err != nil {
+		return "", fmt.Errorf("git log failed with error: %w", err)
+	}
+
+	marker := fmt.Sprintf("%s=%s", s.metadata, r.SHA)
+	for _, commit := range commits {
+		if strings.Contains(commit.Message, marker) {
+			return commit.Hash.String(), nil
+		}
+	}
+
+	return "", nil
+}
+
 func (s *processor) apply(r *carry.Commit, cherrypick bool) error {
 	if cherrypick {
 		if err := s.git.CherryPick(r.SHA); err != nil {
-			return &CherryPickError{
-				gitErr:  err,
-				message: r.ShortString(),
+			// the cherry pick failed, possibly due to a conflict
+			// is there a branch from where we can pick it up?
+			cherryPickCommitSHA, err := s.findCherryPickedCommit(r)
+			if err != nil {
+				klog.Infof("did not find cheryy-picked commit - %v", err)
+				return &CherryPickError{gitErr: err, message: r.ShortString()}
 			}
+
+			if len(cherryPickCommitSHA) > 0 {
+				err = s.git.CherryPick(r.SHA)
+			}
+			return &CherryPickError{gitErr: err, message: r.ShortString()}
 		}
 	}
 

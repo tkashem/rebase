@@ -4,12 +4,14 @@ import (
 	"github.com/spf13/cobra"
 	"k8s.io/klog/v2"
 
+	flag "github.com/spf13/pflag"
 	"github.com/tkashem/rebase/pkg/apply"
 	"github.com/tkashem/rebase/pkg/carry"
 )
 
 type ApplyOptions struct {
 	Options
+	CherryPickFromSHA string
 }
 
 func NewApplyCommand() *cobra.Command {
@@ -35,7 +37,7 @@ func NewApplyCommand() *cobra.Command {
 			}
 
 			var runner Runner
-			if runner, err = apply.New(reader, override, options.Target); err != nil {
+			if runner, err = apply.New(reader, override, options.Target, options.CherryPickFromSHA); err != nil {
 				return err
 			}
 
@@ -49,5 +51,6 @@ func NewApplyCommand() *cobra.Command {
 	}
 
 	options.AddFlags(cmd.Flags())
+	flag.StringVar(&options.CherryPickFromSHA, "carry-commit-file", options.CherryPickFromSHA, "SHA pointing to the HEAD of the branch from where to pick commits with merge conflicts")
 	return cmd
 }

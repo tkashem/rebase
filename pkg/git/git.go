@@ -7,15 +7,16 @@ import (
 	"strings"
 
 	gitv5 "github.com/go-git/go-git/v5"
+	"github.com/go-git/go-git/v5/plumbing"
 	gitv5object "github.com/go-git/go-git/v5/plumbing/object"
 	"k8s.io/klog/v2"
 )
 
 type Git interface {
 	CheckRemotes() error
-	FindRebaseMarkerCommit(marker string) (*gitv5object.Commit, error)
+	FindRebaseMarkerCommit(from string, marker string) (*gitv5object.Commit, error)
 	Head() (*gitv5object.Commit, error)
-	Log(stopAtHash string) ([]*gitv5object.Commit, error)
+	Log(from string, stopAtHash string) ([]*gitv5object.Commit, error)
 	CherryPick(sha string) error
 	AmendCommitMessage(f func(string) []string) error
 }
@@ -58,8 +59,12 @@ func (git *git) CheckRemotes() error {
 	return nil
 }
 
-func (git *git) FindRebaseMarkerCommit(marker string) (*gitv5object.Commit, error) {
-	iter, err := git.repository.Log(&gitv5.LogOptions{})
+func (git *git) FindRebaseMarkerCommit(from string, marker string) (*gitv5object.Commit, error) {
+	o := &gitv5.LogOptions{}
+	if len(from) > 0 {
+		o.From = plumbing.NewHash(from)
+	}
+	iter, err := git.repository.Log(o)
 	if err != nil {
 		return nil, fmt.Errorf("git log failed: %w", err)
 	}
@@ -79,8 +84,13 @@ func (git *git) FindRebaseMarkerCommit(marker string) (*gitv5object.Commit, erro
 	return nil, fmt.Errorf("failed to find commit with marker: %s", marker)
 }
 
-func (git *git) Log(stopAtHash string) ([]*gitv5object.Commit, error) {
-	iter, err := git.repository.Log(&gitv5.LogOptions{})
+func (git *git) Log(from, stopAtHash string) ([]*gitv5object.Commit, error) {
+	o := &gitv5.LogOptions{}
+	if len(from) > 0 {
+		o.From = plumbing.NewHash(from)
+	}
+
+	iter, err := git.repository.Log(o)
 	if err != nil {
 		return nil, fmt.Errorf("git log failed: %w", err)
 	}
