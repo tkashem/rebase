@@ -35,13 +35,33 @@ steps:
 - B: hack/pin-dependency.sh openshift/apiserver-library-go {your branch from 4}
      hack/update-vendor.sh
 
-8. make update?
 
-9. make build?
+hack/update-vendor.sh
+manually add replace for o/api, o/client-go ..
 
+(commit the go.mod file)
+
+go mod tidy
+hack/update-vendor.sh
+
+staging/code-genarator directory - go mod vendor
+
+
+
+8. make build?
+9. make update?
+
+
+go 1.18.1? hack/libgolang.sh 484 minimum_go_version
+
+
+protoc 3.0.0
 
 10. make test
 
 ```
 $ GITHUB_AUTH_TOKEN=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 /home/akashem/go/src/github.com/tkashem/rebase/output/rebase apply --target=v1.24 --carry-commit-file=/home/akashem/go/src/github.com/tkashem/rebase/carries/v1.24/carry-commits-v1.24.log --overrides=/home/akashem/go/src/github.com/tkashem/rebase/carries/v1.24/overrides.yaml
 ```
+
+
+comment, sha, action, clean, summary, sig, commit link, pr link

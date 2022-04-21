@@ -160,3 +160,4 @@
 	5b8b08c1629			UPSTREAM: <carry>: apirequestcount filter should skip non-resources	https://github.com/openshift/kubernetes/commit/5b8b08c1629?w=1
 	e23f142b9ed			UPSTREAM: <carry>: ignore invalid apirequestcounts	https://github.com/openshift/kubernetes/commit/e23f142b9ed?w=1
 	363dfdc3e61			UPSTREAM: 109283: test/e2e/*: default existing tests to privileged pod security policy	https://github.com/openshift/kubernetes/commit/363dfdc3e61?w=1	https://github.com/kubernetes/kubernetes/pull/109283
+	383840f5df1			UPSTREAM: 109487: Disable JobTrackingWithFinalizers due to unresolved bug	https://github.com/openshift/kubernetes/commit/383840f5df1?w=1	https://github.com/kubernetes/kubernetes/pull/109487
