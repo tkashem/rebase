@@ -120,16 +120,26 @@ func (s *processor) apply(r *carry.Commit, cherrypick bool) error {
 		if err := s.git.CherryPick(r.SHA); err != nil {
 			// the cherry pick failed, possibly due to a conflict
 			// is there a branch from where we can pick it up?
-			cherryPickCommitSHA, err := s.findCherryPickedCommit(r)
-			if err != nil {
-				klog.Infof("did not find cheryy-picked commit - %v", err)
+			var success bool
+			var cherryPickCommitSHA string
+			if cherryPickCommitSHA, err = s.findCherryPickedCommit(r); err != nil {
+				klog.Infof("did not find cherry-picked commit - %v", err)
 				return &CherryPickError{gitErr: err, message: r.ShortString()}
 			}
 
 			if len(cherryPickCommitSHA) > 0 {
-				err = s.git.CherryPick(r.SHA)
+				klog.InfoS("found a resolved commit, going to cherry pick", "sha", cherryPickCommitSHA)
+				s.git.AbortCherryPick()
+				if err := s.git.CherryPick(cherryPickCommitSHA); err != nil {
+					return &CherryPickError{gitErr: err, message: r.ShortString()}
+				}
+				// successfully picked.
+				success = true
 			}
-			return &CherryPickError{gitErr: err, message: r.ShortString()}
+
+			if !success {
+				return &CherryPickError{gitErr: err, message: r.ShortString()}
+			}
 		}
 	}
 

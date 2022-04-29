@@ -51,6 +51,6 @@ func NewApplyCommand() *cobra.Command {
 	}
 
 	options.AddFlags(cmd.Flags())
-	flag.StringVar(&options.CherryPickFromSHA, "carry-commit-file", options.CherryPickFromSHA, "SHA pointing to the HEAD of the branch from where to pick commits with merge conflicts")
+	flag.StringVar(&options.CherryPickFromSHA, "cherry-pick-from", options.CherryPickFromSHA, "SHA pointing to the HEAD of the branch from where to pick commits with merge conflicts")
 	return cmd
 }

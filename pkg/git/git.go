@@ -18,6 +18,7 @@ type Git interface {
 	Head() (*gitv5object.Commit, error)
 	Log(from string, stopAtHash string) ([]*gitv5object.Commit, error)
 	CherryPick(sha string) error
+	AbortCherryPick() error
 	AmendCommitMessage(f func(string) []string) error
 }
 
@@ -133,6 +134,27 @@ func (git *git) CherryPick(sha string) error {
 	stdoutStderr, err = cmd.CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("git cherry-pick failed: %w", err)
+	}
+	return nil
+}
+
+func (git *git) AbortCherryPick() error {
+	cmd := exec.Command("git", "cherry-pick", "--abort")
+
+	var stdoutStderr []byte
+	var err error
+
+	klog.InfoS("aborting cherry-pick", "command", cmd.String())
+	defer func() {
+		if len(stdoutStderr) > 0 {
+			defer klog.Infof(">>>>>>>>>>>>>>>>>>>> OUTPUT: END >>>>>>>>>>>>>>>>>>>>>>\n")
+			klog.Infof("<<<<<<<<<<<<<<<<<<<< OUTPUT: START <<<<<<<<<<<<<<<<<<<<\n%s", stdoutStderr)
+		}
+	}()
+
+	stdoutStderr, err = cmd.CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("aborting cherry-pick failed: %w", err)
 	}
 	return nil
 }
