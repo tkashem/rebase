@@ -3,7 +3,7 @@
 set -e
 
 version="v1.24"
-target="v1.24.0-rc.0"
+target="v1.24.0"
 # this will be the branch we use to generate carry commits
 branch="rebase-${target}"
 

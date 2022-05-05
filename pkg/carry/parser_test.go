@@ -13,15 +13,15 @@ func TestParse(t *testing.T) {
 		name             string
 		input            string
 		errShouldContain string
-		expected         *Commit
+		expected         *CommitSummary
 	}{
 		{
 			name:             "revert",
 			input:            "\td032c6e6463\t\t\tUPSTREAM: revert: <carry>: Unskip OCP SDN related tests\thttps://github.com/openshift/kubernetes/commit/d032c6e6463?w=1",
 			errShouldContain: "",
-			expected: &Commit{
+			expected: &CommitSummary{
 				SHA:               "d032c6e6463",
-				CommitType:        "revert",
+				EffectiveType:     "revert",
 				Message:           "<carry>: Unskip OCP SDN related tests",
 				MessageWithPrefix: "UPSTREAM: revert: <carry>: Unskip OCP SDN related tests",
 				OpenShiftCommit:   "https://github.com/openshift/kubernetes/commit/d032c6e6463?w=1",
@@ -32,9 +32,9 @@ func TestParse(t *testing.T) {
 			name:             "pick",
 			input:            "\tdb4c4bbd6d6\t\t\tUPSTREAM: 107900: Add an e2e test for updating a static pod while it restarts\thttps://github.com/openshift/kubernetes/commit/db4c4bbd6d6?w=1\thttps://github.com/kubernetes/kubernetes/pull/107900",
 			errShouldContain: "",
-			expected: &Commit{
+			expected: &CommitSummary{
 				SHA:               "db4c4bbd6d6",
-				CommitType:        "107900",
+				EffectiveType:     "107900",
 				Message:           "Add an e2e test for updating a static pod while it restarts",
 				MessageWithPrefix: "UPSTREAM: 107900: Add an e2e test for updating a static pod while it restarts",
 				OpenShiftCommit:   "https://github.com/openshift/kubernetes/commit/db4c4bbd6d6?w=1",
@@ -45,9 +45,9 @@ func TestParse(t *testing.T) {
 			name:             "carry",
 			input:            "\td7b268fffba\t\t\tUPSTREAM: <carry>: use console-public config map for console redirect\thttps://github.com/openshift/kubernetes/commit/d7b268fffba?w=1",
 			errShouldContain: "",
-			expected: &Commit{
+			expected: &CommitSummary{
 				SHA:               "d7b268fffba",
-				CommitType:        "carry",
+				EffectiveType:     "carry",
 				Message:           "use console-public config map for console redirect",
 				MessageWithPrefix: "UPSTREAM: <carry>: use console-public config map for console redirect",
 				OpenShiftCommit:   "https://github.com/openshift/kubernetes/commit/d7b268fffba?w=1",
@@ -58,9 +58,9 @@ func TestParse(t *testing.T) {
 			name:             "drop",
 			input:            "\tc77caa826a0\t\t\tUPSTREAM: <drop>: update vendor files\thttps://github.com/openshift/kubernetes/commit/c77caa826a0?w=1",
 			errShouldContain: "",
-			expected: &Commit{
+			expected: &CommitSummary{
 				SHA:               "c77caa826a0",
-				CommitType:        "drop",
+				EffectiveType:     "drop",
 				Message:           "update vendor files",
 				MessageWithPrefix: "UPSTREAM: <drop>: update vendor files",
 				OpenShiftCommit:   "https://github.com/openshift/kubernetes/commit/c77caa826a0?w=1",

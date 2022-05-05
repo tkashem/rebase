@@ -73,18 +73,22 @@ func (c *cmd) Run() error {
 		picked = picked[0 : len(picked)-1]
 	}
 
+	//original := &original{git: c.git, carries: carries}
+	//overrides := &overrides{git: c.git, carries: carries}
+	//actual := &actual{git: c.git, carries: picked}
+
 	newCarries, drops := sanitize(carries)
 	klog.Infof("stats: total(%d), carries(%d), drops(%d), picked(%d)", len(carries), len(newCarries), len(drops), len(picked))
 	klog.Infof("diff: \n%s", cmp.Diff(c.expected(newCarries), c.got(picked)))
 	return nil
 }
 
-func sanitize(all []*carry.Commit) ([]*carry.Commit, []*carry.Commit) {
-	drops := make([]*carry.Commit, 0)
-	carries := make([]*carry.Commit, 0)
+func sanitize(all []*carry.CommitSummary) ([]*carry.CommitSummary, []*carry.CommitSummary) {
+	drops := make([]*carry.CommitSummary, 0)
+	carries := make([]*carry.CommitSummary, 0)
 
 	for i := range all {
-		if all[i].CommitType == "drop" {
+		if all[i].EffectiveType == "drop" {
 			drops = append(drops, all[i])
 			continue
 		}
@@ -103,7 +107,7 @@ func (c *cmd) got(picked []*gitv5object.Commit) []descriptor {
 	return ex
 }
 
-func (c *cmd) expected(carries []*carry.Commit) []descriptor {
+func (c *cmd) expected(carries []*carry.CommitSummary) []descriptor {
 	ex := make([]descriptor, 0)
 	for _, carry := range carries {
 		ex = append(ex, descriptor{Commit: carry.SHA, Message: carry.MessageWithPrefix})
@@ -127,8 +131,12 @@ func (c *cmd) getSourceCommitHash(msg string) string {
 }
 
 type descriptor struct {
+	Order   int
+	Action  string
 	Commit  string
 	Message string
 }
 
-func (d descriptor) String() string { return fmt.Sprintf("(%s): %s", d.Commit, d.Message) }
+func (d descriptor) String() string {
+	return fmt.Sprintf("%d(%s) - (%s): %s", d.Order, d.Action, d.Commit, d.Message)
+}

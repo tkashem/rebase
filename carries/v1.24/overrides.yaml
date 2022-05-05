@@ -132,3 +132,6 @@ overrides:
 # https://github.com/openshift/kubernetes/commit/b99c8007535?w=1
 - sha: b99c8007535
   do: drop
+
+- sha: 6f15ddb5535
+  do: drop

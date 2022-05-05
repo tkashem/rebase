@@ -2,7 +2,7 @@
 
 set -ex
 
-target="v1.24.0-rc.0"
+target="v1.24.0"
 saveto="carry-commits-${target}.log"
 # this is used as the base for carry commits.
 base="v1.23.0"

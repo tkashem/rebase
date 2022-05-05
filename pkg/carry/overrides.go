@@ -9,7 +9,7 @@ import (
 )
 
 type Overrider interface {
-	Override([]*Commit)
+	Override([]*CommitSummary)
 }
 
 func newOverrider(fpath string) (Overrider, error) {
@@ -22,7 +22,7 @@ func newOverrider(fpath string) (Overrider, error) {
 
 type noOverride struct{}
 
-func (noOverride) Override(_ []*Commit) {
+func (noOverride) Override(_ []*CommitSummary) {
 	klog.InfoS("override: none specified")
 }
 
@@ -66,15 +66,17 @@ func newOverriderFromFile(fpath string) (*overrider, error) {
 	return &overrider{overrides: o.Overrides}, nil
 }
 
-func (o *overrider) Override(commits []*Commit) {
+func (o *overrider) Override(commits []*CommitSummary) {
 	klog.Infof("override: %d specified", len(o.overrides))
 	overrides := toMap(o.overrides)
 
 	for i := range commits {
 		commit := commits[i]
 		if override, ok := overrides[commit.SHA]; ok {
-			klog.Infof("override(%s): %s->%s\t%s", commit.SHA, commit.CommitType, override.Do, commit.MessageWithPrefix)
-			commit.CommitType = override.Do
+			klog.Infof("override(%s): %s->%s\t%s", commit.SHA, commit.EffectiveType, override.Do, commit.MessageWithPrefix)
+
+			// we are override the type here, we keep OriginalType intact
+			commit.EffectiveType = override.Do
 		}
 	}
 }

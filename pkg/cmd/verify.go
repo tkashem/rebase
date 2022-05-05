@@ -28,13 +28,13 @@ func NewVerifyCommand() *cobra.Command {
 			// TODO: today the carries are obtained from a CSV file, but in
 			//  the following rebase we can generate them on the fly using
 			//  the openshift rebase marker
-			reader, err := carry.NewCommitReaderFromFile(options.CarryCommitLogFilePath, options.OverrideFilePath)
+			carries, err := carry.NewReaderFromFile(options.CarryCommitLogFilePath, options.OverrideFilePath)
 			if err != nil {
 				return err
 			}
 
 			var runner Runner
-			if runner, err = verify.New(reader, options.Target); err != nil {
+			if runner, err = verify.New(carries, options.Target); err != nil {
 				return err
 			}
 

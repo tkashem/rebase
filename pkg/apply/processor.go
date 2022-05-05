@@ -50,22 +50,22 @@ func (s *processor) Done() error {
 	return nil
 }
 
-func (s *processor) Step(r *carry.Commit) (DoFunc, error) {
+func (s *processor) Step(r *carry.CommitSummary) (DoFunc, error) {
 	switch {
-	case r.CommitType == "drop":
+	case r.EffectiveType == "drop":
 		return s.drop, nil
-	case r.CommitType == "revert":
+	case r.EffectiveType == "revert":
 		return s.revert, nil
-	case r.CommitType == "carry":
+	case r.EffectiveType == "carry":
 		return s.carry, nil
-	case len(r.CommitType) > 0:
+	case len(r.EffectiveType) > 0:
 		return s.pick, nil
 	}
 
-	return nil, fmt.Errorf("invalid commit type: %s", r.CommitType)
+	return nil, fmt.Errorf("invalid commit type: %s", r.EffectiveType)
 }
 
-func (s *processor) picked(r *carry.Commit) (bool, error) {
+func (s *processor) picked(r *carry.CommitSummary) (bool, error) {
 	commits, err := s.git.Log("", s.stopAtSHA)
 	if err != nil {
 		return false, fmt.Errorf("git log failed with error: %w", err)
@@ -81,7 +81,7 @@ func (s *processor) picked(r *carry.Commit) (bool, error) {
 	return false, nil
 }
 
-func (s *processor) cherrypicked(r *carry.Commit) (bool, error) {
+func (s *processor) cherrypicked(r *carry.CommitSummary) (bool, error) {
 	head, err := s.git.Head()
 	if err != nil {
 		return false, fmt.Errorf("failed to get HEAD: %w", err)
@@ -95,7 +95,7 @@ func (s *processor) cherrypicked(r *carry.Commit) (bool, error) {
 	return false, nil
 }
 
-func (s *processor) findCherryPickedCommit(r *carry.Commit) (string, error) {
+func (s *processor) findCherryPickedCommit(r *carry.CommitSummary) (string, error) {
 	if len(s.cherryPickFromSHA) == 0 {
 		return "", nil
 	}
@@ -115,7 +115,7 @@ func (s *processor) findCherryPickedCommit(r *carry.Commit) (string, error) {
 	return "", nil
 }
 
-func (s *processor) apply(r *carry.Commit, cherrypick bool) error {
+func (s *processor) apply(r *carry.CommitSummary, cherrypick bool) error {
 	if cherrypick {
 		if err := s.git.CherryPick(r.SHA); err != nil {
 			// the cherry pick failed, possibly due to a conflict
@@ -124,21 +124,21 @@ func (s *processor) apply(r *carry.Commit, cherrypick bool) error {
 			var cherryPickCommitSHA string
 			if cherryPickCommitSHA, err = s.findCherryPickedCommit(r); err != nil {
 				klog.Infof("did not find cherry-picked commit - %v", err)
-				return &CherryPickError{gitErr: err, message: r.ShortString()}
+				return &CherryPickError{gitErr: err, message: r.String()}
 			}
 
 			if len(cherryPickCommitSHA) > 0 {
 				klog.InfoS("found a resolved commit, going to cherry pick", "sha", cherryPickCommitSHA)
 				s.git.AbortCherryPick()
 				if err := s.git.CherryPick(cherryPickCommitSHA); err != nil {
-					return &CherryPickError{gitErr: err, message: r.ShortString()}
+					return &CherryPickError{gitErr: err, message: r.String()}
 				}
 				// successfully picked.
 				success = true
 			}
 
 			if !success {
-				return &CherryPickError{gitErr: err, message: r.ShortString()}
+				return &CherryPickError{gitErr: err, message: r.String()}
 			}
 		}
 	}
@@ -157,13 +157,13 @@ func (s *processor) apply(r *carry.Commit, cherrypick bool) error {
 	return nil
 }
 
-func (s *processor) carry(r *carry.Commit) error {
+func (s *processor) carry(r *carry.CommitSummary) error {
 	picked, err := s.picked(r)
 	if err != nil {
 		return err
 	}
 	if picked {
-		klog.Infof("status=picked-in-branch do=noop - %s", r.ShortString())
+		klog.Infof("status=picked-in-branch do=noop - %s", r.String())
 		return nil
 	}
 
@@ -174,24 +174,24 @@ func (s *processor) carry(r *carry.Commit) error {
 	}
 
 	if cherrypicked {
-		klog.Infof("status=cherry-pick-completed do=apply-metadata - %s", r.ShortString())
+		klog.Infof("status=cherry-pick-completed do=apply-metadata - %s", r.String())
 		return s.apply(r, false)
 	}
 
-	klog.Infof("status=not-picked-in-branch do=cherry-pick - %s", r.ShortString())
+	klog.Infof("status=not-picked-in-branch do=cherry-pick - %s", r.String())
 	if err := s.apply(r, true); err != nil {
 		return err
 	}
 	return nil
 }
 
-func (s *processor) pick(r *carry.Commit) error {
+func (s *processor) pick(r *carry.CommitSummary) error {
 	merged, err := s.github.IsPRMerged(r.UpstreamPR)
 	if err != nil {
 		return err
 	}
 	if merged {
-		klog.Infof("status=merged(upstream) do=skip - %s", r.ShortString())
+		klog.Infof("status=merged(upstream) do=skip - %s", r.String())
 		return nil
 	}
 	klog.Infof("upstream PR(%s) status=not-merged - %s", r.UpstreamPR, r.MessageWithPrefix)
@@ -199,27 +199,27 @@ func (s *processor) pick(r *carry.Commit) error {
 	return s.carry(r)
 }
 
-func (s *processor) drop(r *carry.Commit) error {
+func (s *processor) drop(r *carry.CommitSummary) error {
 	if drop := s.override.ShouldDrop(r.SHA); drop {
-		klog.Infof("status=drop(override) do=skip - %s", r.ShortString())
+		klog.Infof("status=drop(override) do=skip - %s", r.String())
 		return nil
 	}
 
-	klog.Infof("type=%s do=? - %s", r.CommitType, r.ShortString())
+	klog.Infof("type=%s do=? - %s", r.EffectiveType, r.String())
 	drop, err := prompt(fmt.Sprintf("do you want to drop(%s)?[Yes/No]:", r.SHA))
 	if err != nil {
 		return err
 	}
 
 	if drop {
-		klog.Infof("status=drop(prompt) do=skip - %s", r.ShortString())
+		klog.Infof("status=drop(prompt) do=skip - %s", r.String())
 		return nil
 	}
 
 	return s.carry(r)
 }
 
-func (s *processor) revert(r *carry.Commit) error {
+func (s *processor) revert(r *carry.CommitSummary) error {
 	return s.carry(r)
 }
 

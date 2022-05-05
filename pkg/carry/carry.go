@@ -1,10 +1,10 @@
 package carry
 
 type CommitReader interface {
-	Read() ([]*Commit, error)
+	Read() ([]*CommitSummary, error)
 }
 
-func NewCommitReaderFromFile(fpath, overrides string) (CommitReader, error) {
+func NewReaderFromFile(fpath, overrides string) (CommitReader, error) {
 	overrider, err := newOverrider(overrides)
 	if err != nil {
 		return nil, err
@@ -21,7 +21,7 @@ type carry struct {
 	overrider Overrider
 }
 
-func (c *carry) Read() ([]*Commit, error) {
+func (c *carry) Read() ([]*CommitSummary, error) {
 	commits, err := c.reader.Read()
 	if err != nil {
 		return nil, err

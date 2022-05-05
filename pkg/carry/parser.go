@@ -6,7 +6,7 @@ import (
 	"strings"
 )
 
-func parse(s string) (*Commit, error) {
+func parse(s string) (*CommitSummary, error) {
 	// an example commit log
 	// {commit-sha}\t\t\tUPSTREAM: {type}: {message}\t{openshift-commit}\t{upstream-pr}
 	// type == 'carry|revert|drop|{upstream-pr-number}'
@@ -15,7 +15,7 @@ func parse(s string) (*Commit, error) {
 	if len(split) < 2 {
 		return nil, fmt.Errorf("malformed commit log, separator: %q not found", "\t\t\t")
 	}
-	record := &Commit{
+	summary := &CommitSummary{
 		SHA: split[0],
 	}
 
@@ -26,20 +26,20 @@ func parse(s string) (*Commit, error) {
 	if len(split) < 2 {
 		return nil, fmt.Errorf("malformed commit log, separator: %q not found", "\t")
 	}
-	record.MessageWithPrefix = split[0]
+	summary.MessageWithPrefix = split[0]
 
 	// {openshift-commit}\t{upstream-pr}'
 	split = strings.Split(split[1], "\t")
 	if len(split) < 1 {
 		return nil, fmt.Errorf("malformed commit log, missing openshift commit url")
 	}
-	record.OpenShiftCommit = split[0]
+	summary.OpenShiftCommit = split[0]
 	if len(split) == 2 {
-		record.UpstreamPR = split[1]
+		summary.UpstreamPR = split[1]
 	}
 
 	// extract type
-	split = strings.SplitN(record.MessageWithPrefix, ":", 3)
+	split = strings.SplitN(summary.MessageWithPrefix, ":", 3)
 	if len(split) < 3 {
 		return nil, fmt.Errorf("malformed commit log, did not find the commit SHA")
 	}
@@ -51,9 +51,14 @@ func parse(s string) (*Commit, error) {
 	if err != nil {
 		return nil, fmt.Errorf("malformed commit log, unknown commit type: %w", err)
 	}
-	record.CommitType = commitType
-	record.Message = strings.TrimSpace(split[2])
-	return record, nil
+
+	// both effective and original type are equal when
+	// a summary object is initialized.
+	summary.EffectiveType = commitType
+	summary.OriginalType = commitType
+
+	summary.Message = strings.TrimSpace(split[2])
+	return summary, nil
 }
 
 func sanitize(t string) (string, error) {

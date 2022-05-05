@@ -27,7 +27,7 @@ func NewApplyCommand() *cobra.Command {
 				return err
 			}
 
-			reader, err := carry.NewCommitReaderFromFile(options.CarryCommitLogFilePath, options.OverrideFilePath)
+			reader, err := carry.NewReaderFromFile(options.CarryCommitLogFilePath, options.OverrideFilePath)
 			if err != nil {
 				return err
 			}

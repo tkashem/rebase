@@ -2,7 +2,6 @@ package apply
 
 import (
 	"fmt"
-	"os"
 	"os/exec"
 	"runtime"
 
@@ -11,48 +10,24 @@ import (
 	"k8s.io/klog/v2"
 )
 
-type DoFunc func(*carry.Commit) error
+type DoFunc func(*carry.CommitSummary) error
 
 type Processor interface {
 	Init() error
 	Done() error
-	Step(*carry.Commit) (DoFunc, error)
+	Step(*carry.CommitSummary) (DoFunc, error)
 }
 
 func New(reader carry.CommitReader, override carry.Prompt, target string, cherryPickFromSHA string) (*cmd, error) {
-	workingDir, err := os.Getwd()
+	accessor, err := git.Initialize(target)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get working directory: %w", err)
+		return nil, fmt.Errorf("failed to initialize git - %w", err)
 	}
-	klog.InfoS("working directory is set", "working-directory", workingDir)
-
-	gitAPI, err := git.OpenGit(workingDir)
-	if err != nil {
-		return nil, fmt.Errorf("failed to open gitAPI workspace at %q - %w", workingDir, err)
-	}
-
-	klog.InfoS("opened gitAPI repository successfully", "working-directory", workingDir)
-	klog.InfoS("rebase target", "version", target)
-
-	githubAPI, err := git.NewGitHubClient()
-	if err != nil {
-		return nil, fmt.Errorf("failed to create githubAPI client - %w", err)
-	}
-
-	marker := fmt.Sprintf("openshift-rebase(%s):marker", target)
-
-	// let's find the rebase marker
-	klog.InfoS("looking for rebase marker", "pattern", marker)
-	stopAtCommit, err := gitAPI.FindRebaseMarkerCommit("", marker)
-	if err != nil {
-		return nil, err
-	}
-	klog.InfoS("found rebase marker", "commit", stopAtCommit.Message)
 
 	var cherryStopAtSHA string
 	if len(cherryPickFromSHA) > 0 {
-		klog.InfoS("looking for rebase marker for cherry-pick branch", "pattern", marker)
-		cherryPickStopAt, err := gitAPI.FindRebaseMarkerCommit(cherryPickFromSHA, marker)
+		klog.InfoS("looking for rebase marker for cherry-pick branch", "pattern", accessor.Marker)
+		cherryPickStopAt, err := accessor.Git.FindRebaseMarkerCommit(cherryPickFromSHA, accessor.Marker)
 		if err != nil {
 			return nil, err
 		}
@@ -64,12 +39,12 @@ func New(reader carry.CommitReader, override carry.Prompt, target string, cherry
 		reader: reader,
 		processor: &processor{
 			override:  override,
-			git:       gitAPI,
-			github:    githubAPI,
+			git:       accessor.Git,
+			github:    accessor.GitHub,
 			target:    target,
-			marker:    marker,
+			marker:    accessor.Marker,
 			metadata:  fmt.Sprintf("openshift-rebase(%s):source", target),
-			stopAtSHA: stopAtCommit.Hash.String(),
+			stopAtSHA: accessor.StopAtCommitSHA,
 
 			cherryPickFromSHA: cherryPickFromSHA,
 			cherryStopAtSHA:   cherryStopAtSHA,
